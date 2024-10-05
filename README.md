@@ -1,0 +1,1 @@
+# minicpmv2.6-onnx
