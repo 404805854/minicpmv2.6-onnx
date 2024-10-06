@@ -7,9 +7,9 @@ from copy import deepcopy
 from PIL import Image
 from transformers import AutoProcessor, Qwen2PreTrainedModel, Qwen2ForCausalLM, TextIteratorStreamer
 
-from .configuration_minicpm import MiniCPMVConfig
-from .modeling_navit_siglip import SiglipVisionTransformer
-from .resampler import Resampler
+from configuration_minicpm import MiniCPMVConfig
+from modeling_navit_siglip import SiglipVisionTransformer
+from resampler import Resampler
 
 
 
@@ -71,6 +71,40 @@ class MiniCPMV(MiniCPMVPreTrainedModel):
 
     def get_decoder(self):
         return self.llm
+    
+    def export(self):
+        with torch.inference_mode():
+            torch.onnx.export(
+                self.vpm,
+                (
+                    torch.load("./data/hidden_states.pt").to(torch.float32),
+                    torch.load("./data/patch_attention_mask.pt"),
+                ),
+                "./data/vpm.onnx",
+                export_params=True,
+                opset_version=14,
+                do_constant_folding=True,
+                input_names=['hidden_states', 'patch_attention_mask'],
+                output_names=['last_hidden_state'],
+                dynamic_axes={
+                    'hidden_states': {
+                        0: 'batch_size',
+                        1: 'max_patches',
+                        2: 'embed_dim',
+                    },
+                    'patch_attention_mask':  {
+                        0: 'batch_size',
+                        1: 'max_patches',
+                    },
+                    'last_hidden_state':  {
+                        0: 'batch_size',
+                        1: 'max_patches',
+                        2: 'embed_dim',
+                    },
+                },
+                autograd_inlining=False,
+            )
+
 
     def get_vllm_embedding(self, data):
         if 'vision_hidden_states' not in data:
@@ -108,11 +142,20 @@ class MiniCPMV(MiniCPMVPreTrainedModel):
                     for i in range(0, B, vision_batch_size):
                         start_idx = i
                         end_idx = i + vision_batch_size
-                        tmp_hs = self.vpm(all_pixel_values[start_idx:end_idx], patch_attention_mask=patch_attn_mask[start_idx:end_idx], tgt_sizes=tgt_sizes[start_idx:end_idx]).last_hidden_state
+
+                        patch_attention_mask = patch_attn_mask[start_idx:end_idx]
+                        hidden_states = self.vpm.embeddings(pixel_values=all_pixel_values[start_idx:end_idx], patch_attention_mask=patch_attention_mask, tgt_sizes=tgt_sizes[start_idx:end_idx])
+                        patch_attention_mask = patch_attention_mask.view(B, -1)
+
+                        tmp_hs = self.vpm(hidden_states, patch_attention_mask)
                         hs.append(tmp_hs)
                     vision_embedding = torch.cat(hs, dim=0)
                 else:
-                    vision_embedding = self.vpm(all_pixel_values, patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes)
+                    patch_attention_mask = patch_attn_mask
+                    hidden_states = self.vpm.embeddings(pixel_values=all_pixel_values, patch_attention_mask=patch_attention_mask, tgt_sizes=tgt_sizes)
+                    patch_attention_mask = patch_attention_mask.view(B, -1)
+
+                    vision_embedding = self.vpm(hidden_states, patch_attention_mask)
                 vision_embedding = self.resampler(vision_embedding, tgt_sizes)
 
                 start = 0

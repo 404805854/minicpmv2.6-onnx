@@ -6,7 +6,7 @@ from typing import Union
 
 from transformers.utils import logging
 from transformers import Qwen2Config, PretrainedConfig
-from .modeling_navit_siglip import SiglipVisionConfig
+from modeling_navit_siglip import SiglipVisionConfig
 
 logger = logging.get_logger(__name__)
 

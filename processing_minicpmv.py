@@ -26,7 +26,7 @@ from transformers.processing_utils import ProcessorMixin
 from transformers.tokenization_utils_base import PaddingStrategy, PreTokenizedInput, TextInput, TruncationStrategy
 from transformers.utils import TensorType, requires_backends, is_torch_dtype, is_torch_device
 
-from .image_processing_minicpmv import MiniCPMVBatchFeature
+from image_processing_minicpmv import MiniCPMVBatchFeature
 
 
 class MiniCPMVProcessor(ProcessorMixin):
