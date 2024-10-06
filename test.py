@@ -1,15 +1,14 @@
 # test.py
 import torch
 from PIL import Image
-from transformers import AutoModel, AutoTokenizer, BitssAndBytesConfig
+from transformers import AutoModel, AutoTokenizer
 
 model = AutoModel.from_pretrained('./', trust_remote_code=True, torch_dtype=torch.bfloat16, local_files_only=True)
-# model = model.to(device='cuda')
 
 tokenizer = AutoTokenizer.from_pretrained('./', trust_remote_code=True)
 model.eval()
 
-image = Image.open('/data1/caitianchi/code/MiniCPM-V-2_5/20240614-205027.jpeg').convert('RGB')
+image = Image.open('学士学位证.jpg').convert('RGB')
 question = '描述这张图?'
 msgs = [{'role': 'user', 'content': question}]
 

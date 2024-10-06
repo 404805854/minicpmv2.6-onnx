@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Optional, Tuple
 import numpy as np
 import warnings
@@ -9,7 +8,7 @@ from torch import Tensor
 import torch.nn.functional as F
 from torch.nn.functional import *
 from torch.nn.modules.activation import *
-from torch.nn.init import trunc_normal_, constant_, xavier_normal_, xavier_uniform_
+from torch.nn.init import trunc_normal_
 
 from transformers.integrations import is_deepspeed_zero3_enabled
 
@@ -78,7 +77,6 @@ class Resampler(nn.Module):
             embed_dim,
             num_heads,
             kv_dim=None,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
             adaptive=False,
             max_size=(70, 70),
     ):
@@ -97,10 +95,10 @@ class Resampler(nn.Module):
             self.kv_proj = nn.Identity()
 
         self.attn = MultiheadAttention(embed_dim, num_heads)
-        self.ln_q = norm_layer(embed_dim)
-        self.ln_kv = norm_layer(embed_dim)
+        self.ln_q = nn.LayerNorm(embed_dim, eps=1e-6)
+        self.ln_kv = nn.LayerNorm(embed_dim, eps=1e-6)
 
-        self.ln_post = norm_layer(embed_dim)
+        self.ln_post = nn.LayerNorm(embed_dim, eps=1e-6)
         self.proj = nn.Parameter((embed_dim ** -0.5) * torch.randn(embed_dim, embed_dim))
 
         self._set_2d_pos_cache(self.max_size)

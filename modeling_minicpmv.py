@@ -1,8 +1,6 @@
 import math
-from typing import List, Optional
 import json
 import torch
-import torchvision
 
 from threading import Thread
 from copy import deepcopy
@@ -27,7 +25,7 @@ class MiniCPMV(MiniCPMVPreTrainedModel):
         self.vision_dim = self.vpm.embed_dim
         self.embed_dim = self.llm.config.hidden_size
         self.resampler = self.init_resampler(self.embed_dim, self.vision_dim)
-        self.processor = None
+        self.processor = AutoProcessor.from_pretrained(self.config._name_or_path, trust_remote_code=True)
 
         self.terminators = ['<|im_end|>', '<|endoftext|>']
 
@@ -114,7 +112,7 @@ class MiniCPMV(MiniCPMVPreTrainedModel):
                         hs.append(tmp_hs)
                     vision_embedding = torch.cat(hs, dim=0)
                 else:
-                    vision_embedding = self.vpm(all_pixel_values, patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes).last_hidden_state
+                    vision_embedding = self.vpm(all_pixel_values, patch_attention_mask=patch_attn_mask, tgt_sizes=tgt_sizes)
                 vision_embedding = self.resampler(vision_embedding, tgt_sizes)
 
                 start = 0
@@ -297,8 +295,6 @@ class MiniCPMV(MiniCPMVPreTrainedModel):
         assert len(images_list) == len(msgs_list), "The batch dim of images_list and msgs_list should be the same."
 
         if processor is None:
-            if self.processor is None:
-                self.processor = AutoProcessor.from_pretrained(self.config._name_or_path, trust_remote_code=True)
             processor = self.processor
         
         assert self.config.query_num == processor.image_processor.image_feature_size, "These two values should be the same. Check `config.json` and `preprocessor_config.json`."
